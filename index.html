@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SMMM Mobil Ofis</title>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#1E3A8A">
+  <style>
+    /* BÖLÜM 1: Ayarlanabilir Görsel Tema Değişkenleri */
+    :root {
+      --ana-renk: #1E3A8A;
+      --basari-renk: #16A34A;
+      --uyari-renk: #D97706;
+      --tehlike-renk: #DC2626;
+      --arka-plan: #F1F5F9;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: var(--arka-plan); color: #1E293B; padding-bottom: 75px; }
+    header { background: var(--ana-renk); color: white; padding: 14px; text-align: center; }
+    header h1 { font-size: 18px; margin-bottom: 4px; }
+    header p { font-size: 12px; opacity: 0.85; }
+
+    /* Üst Özet Gösterge Kartları */
+    .ozet-izgara { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 12px 0 12px; }
+    .ozet-kutu { background: #0F172A; color: white; padding: 10px; border-radius: 8px; text-align: center; }
+    .ozet-kutu span { display: block; font-size: 11px; color: #94A3B8; }
+    .ozet-kutu strong { font-size: 15px; margin-top: 3px; display: block; }
+
+    .icerik { padding: 12px; }
+    .gizli { display: none; }
+    .kart { background: white; padding: 14px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .kart h3 { font-size: 15px; margin-bottom: 10px; color: var(--ana-renk); }
+
+    /* Form Elemanları */
+    label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #475569; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #CBD5E1; border-radius: 8px; margin-bottom: 10px; font-size: 14px; background: #FFF; }
+    .ana-buton { width: 100%; padding: 12px; background: var(--basari-renk); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; }
+
+    /* Mükellef Kartı ve Durum Rozetleri */
+    .mukellef-baslik { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .mukellef-meta { font-size: 12px; color: #64748B; margin-top: 2px; }
+    .durum-satiri { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .durum-btn { flex: 1; min-width: 90px; padding: 8px 6px; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; color: white; }
+    .bekliyor { background: var(--uyari-renk); }
+    .tamam { background: var(--basari-renk); }
+    .sil-btn { background: #FEE2E2; color: var(--tehlike-renk); border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 12px; }
+
+    /* İlerleme Çubuğu */
+    .cubuk-dis { width: 100%; height: 12px; background: #E2E8F0; border-radius: 6px; overflow: hidden; margin: 6px 0 14px 0; }
+    .cubuk-ic { height: 100%; background: var(--basari-renk); width: 0%; transition: width 0.3s; }
+
+    /* Alt Sekme Menüsü */
+    nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0F172A; display: flex; padding: 8px; gap: 6px; }
+    nav button { flex: 1; background: transparent; color: #94A3B8; border: none; padding: 10px 4px; font-size: 13px; font-weight: bold; border-radius: 8px; }
+    nav button.aktif { color: white; background: var(--ana-renk); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>📊 SMMM Mobil Ofis</h1>
+    <p>Mükellef, Beyanname ve Makbuz Yönetimi</p>
+  </header>
+
+  <!-- Üst Canlı Özet Paneli -->
+  <div class="ozet-izgara">
+    <div class="ozet-kutu">
+      <span>Tahsilat / Toplam Alacak</span>
+      <strong id="ustTahsilat">0 / 0 TL</strong>
+    </div>
+    <div class="ozet-kutu">
+      <span>Bekleyen Beyanname</span>
+      <strong id="ustBeyanname">0 Adet</strong>
+    </div>
+  </div>
+
+  <!-- SEKME 1: Mükellef ve Beyanname Takip Ekranı -->
+  <main id="sekmeMukellef" class="icerik">
+    <div class="kart">
+      <h3>Yeni Mükellef Ekle</h3>
+      <label>Mükellef Unvanı / Ad Soyad</label>
+      <input type="text" id="inpUnvan" placeholder="Örn: Yılmaz Ticaret Ltd. Şti.">
+
+      <label>Vergi No veya T.C. Kimlik No</label>
+      <input type="number" id="inpVergiNo" placeholder="10 veya 11 haneli numara">
+
+      <label>Defter Türü</label>
+      <select id="selDefter">
+        <option value="Bilanço">Bilanço Esası (1. Sınıf)</option>
+        <option value="İşletme">İşletme Defteri (2. Sınıf)</option>
+        <option value="Serbest Meslek">Serbest Meslek Kazanç Defteri</option>
+      </select>
+
+      <label>Aylık Muhasebe Ücreti (TL)</label>
+      <input type="number" id="inpUcret" placeholder="Örn: 3500">
+
+      <button class="ana-buton" onclick="mukellefEkle()">Mükellefi Kaydet</button>
+    </div>
+
+    <div id="mukellefListesi"></div>
+  </main>
+
+  <!-- SEKME 2: Serbest Meslek Makbuzu (SMM) ve KDV Hesaplayıcı -->
+  <section id="sekmeHesap" class="icerik gizli">
+    <div class="kart">
+      <h3>Serbest Meslek Makbuzu (SMM) Hesapla</h3>
+      <label>Brüt Ücret Tutarı (TL)</label>
+      <input type="number" id="inpBrutTutar" value="5000" oninput="makbuzHesapla()">
+
+      <label>Gelir Vergisi Stopaj Oranı (%)</label>
+      <select id="selStopaj" onchange="makbuzHesapla()">
+        <option value="20">%20 (Standart SMM Stopajı)</option>
+        <option value="0">%0 (Stopajsız / Sadece KDV)</option>
+      </select>
+
+      <label>KDV Oranı (%)</label>
+      <select id="selKdv" onchange="makbuzHesapla()">
+        <option value="20">%20 (Genel KDV)</option>
+        <option value="10">%10 (İndirimli KDV)</option>
+        <option value="1">%1 (Temel Oran)</option>
+      </select>
+
+      <div id="hesapSonucAlani" style="background:#F8FAFC; padding:12px; border-radius:8px; line-height:1.8; font-size:14px;"></div>
+    </div>
+  </section>
+
+  <!-- SEKME 3: Ofis Analizi ve Excel / CSV Çıktısı -->
+  <section id="sekmeRapor" class="icerik gizli">
+    <div class="kart">
+      <h3>Aylık Ofis Performans Özeti</h3>
+      <p id="txtTahsilatOran" style="font-size:14px; font-weight:bold;"></p>
+      <div class="cubuk-dis"><div id="barTahsilat" class="cubuk-ic"></div></div>
+
+      <p id="txtBeyannameOran" style="font-size:14px; font-weight:bold;"></p>
+      <div class="cubuk-dis"><div id="barBeyanname" class="cubuk-ic"></div></div>
+
+      <button class="ana-buton" onclick="csvRaporIndir()">📥 Excel / CSV Tablosu İndir</button>
+    </div>
+  </section>
+
+  <!-- Alt Navigasyon Çubuğu -->
+  <nav>
+    <button id="navMukellef" class="aktif" onclick="sekmeDegistir('mukellef')">Mükellefler</button>
+    <button id="navHesap" onclick="sekmeDegistir('hesap')">SMM Hesap</button>
+    <button id="navRapor" onclick="sekmeDegistir('rapor')">Rapor & CSV</button>
+  </nav>
+
+  <script>
+    /**
+     * BÖLÜM 2: Ayarlanabilir Uygulama Parametreleri
+     * VERI_ANAHTARI: Verilerin telefon hafızasında saklandığı anahtar isimdir.
+     * PARA_BIRIMI: Tüm tutarların yanında görünecek birimdir.
+     * CSV_AYIRICI: Türkçe Excel uyumu için noktalı virgül kullanılır.
+     */
+    const VERI_ANAHTARI = 'smmm_ofis_mukellefler_v1';
+    const PARA_BIRIMI = 'TL';
+    const CSV_AYIRICI = ';';
+
+    // Hafızadaki mükellef listesini okur (yoksa boş dizi başlatır)
+    let mukellefler = JSON.parse(localStorage.getItem(VERI_ANAHTARI) || '[]');
+
+    // Verileri kalıcı hafızaya kaydeder ve ekranı yeniler
+    function kaydetVeYenile() {
+      localStorage.setItem(VERI_ANAHTARI, JSON.stringify(mukellefler));
+      arayuzuCiz();
+    }
+
+    // Yeni mükellef ekleme fonksiyonu
+    function mukellefEkle() {
+      const unvan = document.getElementById('inpUnvan').value.trim();
+      const vergiNo = document.getElementById('inpVergiNo').value.trim();
+      const defter = document.getElementById('selDefter').value;
+      const ucret = parseFloat(document.getElementById('inpUcret').value);
+
+      if (!unvan || isNaN(ucret) || ucret <= 0) {
+        alert('Lütfen mükellef unvanını ve geçerli bir aylık ücreti girin!');
+        return;
+      }
+
+      mukellefler.unshift({
+        id: Date.now(),
+        unvan: unvan,
+        vergiNo: vergiNo || 'Belirtilmedi',
+        defter: defter,
+        ucret: ucret,
+        tahsilEdildi: false,
+        kdvVerildi: false,
+        muhtasarVerildi: false
+      });
+
+      document.getElementById('inpUnvan').value = '';
+      document.getElementById('inpVergiNo').value = '';
+      document.getElementById('inpUcret').value = '';
+      kaydetVeYenile();
+    }
+
+    // Tahsilat, KDV veya Muhtasar durumunu tek dokunuşla tersine çevirir
+    function durumDegistir(id, alanAdi) {
+      const hedef = mukellefler.find((m) => m.id === id);
+      if (hedef) {
+        hedef[alanAdi] = !hedef[alanAdi];
+        kaydetVeYenile();
+      }
+    }
+
+    // Seçilen mükellefi siler
+    function mukellefSil(id) {
+      mukellefler = mukellefler.filter((m) => m.id !== id);
+      kaydetVeYenile();
+    }
+
+    // Mükellef kartlarını, üst özeti ve rapor çubuklarını ekrana çizer
+    function arayuzuCiz() {
+      const listeKutusu = document.getElementById('mukellefListesi');
+      listeKutusu.innerHTML = '';
+
+      let toplamAlacak = 0;
+      let tahsilEdilen = 0;
+      let bekleyenBeyanname = 0;
+      let toplamBeyanname = mukellefler.length * 2;
+
+      mukellefler.forEach((m) => {
+        toplamAlacak += m.ucret;
+        if (m.tahsilEdildi) tahsilEdilen += m.ucret;
+        if (!m.kdvVerildi) bekleyenBeyanname++;
+        if (!m.muhtasarVerildi) bekleyenBeyanname++;
+
+        const kart = document.createElement('div');
+        kart.className = 'kart';
+        kart.innerHTML = `
+          <div class="mukellef-baslik">
+            <div>
+              <strong>${m.unvan}</strong>
+              <div class="mukellef-meta">${m.defter} • VKN/TC: ${m.vergiNo}</div>
+              <div class="mukellef-meta" style="color:#0F172A; font-weight:bold; margin-top:4px;">
+                Ücret: ${m.ucret.toFixed(2)} ${PARA_BIRIMI}
+              </div>
+            </div>
+            <button class="sil-btn" onclick="mukellefSil(${m.id})">Sil</button>
+          </div>
+          <div class="durum-satiri">
+            <button class="durum-btn ${m.tahsilEdildi ? 'tamam' : 'bekliyor'}"
+              onclick="durumDegistir(${m.id}, 'tahsilEdildi')">
+              ${m.tahsilEdildi ? '✅ Tahsil Edildi' : '⏳ Ücret Bekliyor'}
+            </button>
+            <button class="durum-btn ${m.kdvVerildi ? 'tamam' : 'bekliyor'}"
+              onclick="durumDegistir(${m.id}, 'kdvVerildi')">
+              ${m.kdvVerildi ? '✅ KDV Verildi' : '📄 KDV Bekliyor'}
+            </button>
+            <button class="durum-btn ${m.muhtasarVerildi ? 'tamam' : 'bekliyor'}"
+              onclick="durumDegistir(${m.id}, 'muhtasarVerildi')">
+              ${m.muhtasarVerildi ? '✅ MPHB Verildi' : '📋 MPHB Bekliyor'}
+            </button>
+          </div>
+        `;
+        listeKutusu.appendChild(kart);
+      });
+
+      // Üst özet panelini günceller
+      document.getElementById('ustTahsilat').innerText =
+        `${tahsilEdilen.toFixed(0)} / ${toplamAlacak.toFixed(0)} ${PARA_BIRIMI}`;
+      document.getElementById('ustBeyanname').innerText = `${bekleyenBeyanname} Adet`;
+
+      // Rapor sekmesindeki yüzdeleri günceller
+      const tahsilYuzde = toplamAlacak > 0 ? Math.round((tahsilEdilen / toplamAlacak) * 100) : 0;
+      const tamamlananBeyan = toplamBeyanname - bekleyenBeyanname;
+      const beyanYuzde = toplamBeyanname > 0 ? Math.round((tamamlananBeyan / toplamBeyanname) * 100) : 0;
+
+      document.getElementById('txtTahsilatOran').innerText =
+        `Tahsilat Oranı: %${tahsilYuzde} (${tahsilEdilen.toFixed(2)} ${PARA_BIRIMI})`;
+      document.getElementById('barTahsilat').style.width = `${tahsilYuzde}%`;
+
+      document.getElementById('txtBeyannameOran').innerText =
+        `Beyanname Tamamlanma: %${beyanYuzde} (${tamamlananBeyan}/${toplamBeyanname})`;
+      document.getElementById('barBeyanname').style.width = `${beyanYuzde}%`;
+    }
+
+    // Serbest Meslek Makbuzu (Stopaj ve KDV) hesaplama fonksiyonu
+    function makbuzHesapla() {
+      const brut = parseFloat(document.getElementById('inpBrutTutar').value) || 0;
+      const stopajOran = parseFloat(document.getElementById('selStopaj').value) / 100;
+      const kdvOran = parseFloat(document.getElementById('selKdv').value) / 100;
+
+      const stopajTutari = brut * stopajOran;
+      const netUcret = brut - stopajTutari;
+      const kdvTutari = brut * kdvOran;
+      const tahsilEdilecekToplam = netUcret + kdvTutari;
+
+      document.getElementById('hesapSonucAlani').innerHTML = `
+        <div>Brüt Ücret: <strong>${brut.toFixed(2)} ${PARA_BIRIMI}</strong></div>
+        <div>Stopaj Kesintisi (-): <strong>${stopajTutari.toFixed(2)} ${PARA_BIRIMI}</strong></div>
+        <div>Net Ücret: <strong>${netUcret.toFixed(2)} ${PARA_BIRIMI}</strong></div>
+        <div>Hesaplanan KDV (+): <strong>${kdvTutari.toFixed(2)} ${PARA_BIRIMI}</strong></div>
+        <hr style="margin:6px 0; border:0; border-top:1px solid #CBD5E1;">
+        <div style="color:#16A34A; font-size:15px;">
+          Müşteriden Tahsil Edilecek: <strong>${tahsilEdilecekToplam.toFixed(2)} ${PARA_BIRIMI}</strong>
+        </div>
+      `;
+    }
+
+    // Mükellef tablosunu Türkçe Excel uyumlu CSV dosyası olarak indirir
+    function csvRaporIndir() {
+      if (mukellefler.length === 0) {
+        alert('Dışa aktarılacak mükellef kaydı bulunamadı!');
+        return;
+      }
+      let csv = '\uFEFFUnvan' + CSV_AYIRICI + 'Vergi No' + CSV_AYIRICI + 'Defter Turu' + CSV_AYIRICI +
+                'Ucret' + CSV_AYIRICI + 'Tahsilat' + CSV_AYIRICI + 'KDV' + CSV_AYIRICI + 'Muhtasar\n';
+
+      mukellefler.forEach((m) => {
+        csv += `${m.unvan.replace(/;/g, ' ')}${CSV_AYIRICI}${m.vergiNo}${CSV_AYIRICI}${m.defter}${CSV_AYIRICI}` +
+               `${m.ucret.toFixed(2)}${CSV_AYIRICI}${m.tahsilEdildi ? 'Odendi' : 'Bekliyor'}${CSV_AYIRICI}` +
+               `${m.kdvVerildi ? 'Verildi' : 'Bekliyor'}${CSV_AYIRICI}${m.muhtasarVerildi ? 'Verildi' : 'Bekliyor'}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const baglanti = document.createElement('a');
+      baglanti.href = URL.createObjectURL(blob);
+      baglanti.download = 'Mali_Musavir_Raporu.csv';
+      baglanti.click();
+    }
+
+    // Alt sekmeler arasında ekran geçişini yönetir
+    function sekmeDegistir(secilen) {
+      document.getElementById('sekmeMukellef').classList.toggle('gizli', secilen !== 'mukellef');
+      document.getElementById('sekmeHesap').classList.toggle('gizli', secilen !== 'hesap');
+      document.getElementById('sekmeRapor').classList.toggle('gizli', secilen !== 'rapor');
+
+      document.getElementById('navMukellef').classList.toggle('aktif', secilen === 'mukellef');
+      document.getElementById('navHesap').classList.toggle('aktif', secilen === 'hesap');
+      document.getElementById('navRapor').classList.toggle('aktif', secilen === 'rapor');
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+    makbuzHesapla();
+    arayuzuCiz();
+  </script>
+</body>
+</html>
